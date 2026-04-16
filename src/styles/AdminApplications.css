@@ -700,6 +700,65 @@
   box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
 }
 
+/* Loading and Error States */
+.loading-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.loading-icon {
+  width: 2rem;
+  height: 2rem;
+  animation: spin 1s linear infinite;
+  margin-bottom: 1rem;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.error-state {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #dc2626;
+}
+
+.error-state button {
+  margin-top: 1rem;
+  background: #fee2e2;
+  color: #dc2626;
+  border: none;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.5rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.error-state button:hover {
+  background: #fecaca;
+}
+
+/* Current Status Display */
+.current-status {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem;
+  background: #f9fafb;
+  border-radius: 0.5rem;
+}
+
+.status-date {
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
 /* Responsive */
 @media (max-width: 1024px) {
   .review-grid {

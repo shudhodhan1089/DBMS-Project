@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { GraduationCap, Eye, EyeOff } from "lucide-react";
-import { currentStudent, adminUser } from "../data/dummyData";
 import "../styles/Auth.css";
 
 function Login({ onLogin }) {
@@ -40,21 +39,43 @@ function Login({ onLogin }) {
       return;
     }
 
-    // Demo login logic
+    // Demo login logic - any email/password works for now
     if (isAdmin) {
-      if (formData.email === "admin@vjti.ac.in" && formData.password === "admin123") {
-        onLogin(adminUser, true);
-        navigate("/admin");
-      } else {
-        setError("Invalid admin credentials. Try admin@vjti.ac.in / admin123");
-      }
+      // Any email can be used for admin - just create admin user from email
+      const adminUserFromEmail = {
+        id: "ADM001",
+        name: formData.email.split('@')[0],
+        email: formData.email,
+        role: "Scholarship Coordinator",
+      };
+      onLogin(adminUserFromEmail, true);
+      navigate("/admin");
     } else {
-      if (formData.email === "rahul.sharma@vjti.ac.in" && formData.password === "student123") {
-        onLogin(currentStudent, false);
-        navigate("/dashboard");
-      } else {
-        setError("Invalid credentials. Try rahul.sharma@vjti.ac.in / student123");
-      }
+      // Student login - any email works for demo
+      const studentUserFromEmail = {
+        id: "STU2024001",
+        name: formData.email.split('@')[0],
+        email: formData.email,
+        phone: "+91 9876543210",
+        rollNumber: "201070001",
+        department: "Computer Engineering",
+        year: 3,
+        cgpa: 8.5,
+        income: 250000,
+        caste: "OBC",
+        gender: "Male",
+        dob: "2002-05-15",
+        address: "123, Mumbai Central, Mumbai - 400008",
+        documents: {
+          incomeCertificate: true,
+          casteCertificate: true,
+          marksheet: true,
+          bonafide: true,
+          bankPassbook: false,
+        },
+      };
+      onLogin(studentUserFromEmail, false);
+      navigate("/dashboard");
     }
 
     setLoading(false);
@@ -164,7 +185,7 @@ function Login({ onLogin }) {
                     name="email"
                     value={formData.email}
                     onChange={handleChange}
-                    placeholder={isAdmin ? "admin@vjti.ac.in" : "your.email@vjti.ac.in"}
+                    placeholder={isAdmin ? "Enter admin email" : "your.email@vjti.ac.in"}
                   />
                 </div>
               </div>
@@ -225,9 +246,8 @@ function Login({ onLogin }) {
 
             {/* Demo Credentials */}
             <div className="demo-credentials">
-              <p><strong>Demo Credentials:</strong></p>
-              <p>Student: rahul.sharma@vjti.ac.in / student123</p>
-              <p>Admin: admin@vjti.ac.in / admin123</p>
+              <p><strong>Demo Mode:</strong></p>
+              <p>Any email and password will work for login</p>
             </div>
           </div>
         </div>

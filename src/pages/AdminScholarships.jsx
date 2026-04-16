@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -14,8 +14,9 @@ import {
   CheckCircle,
   XCircle,
   X,
+  Loader2,
 } from "lucide-react";
-import { scholarships } from "../data/dummyData";
+import { apiService } from "../services/api";
 import "../styles/AdminScholarships.css";
 
 function AdminScholarships() {
@@ -24,12 +25,46 @@ function AdminScholarships() {
   const [filter, setFilter] = useState("all");
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingScholarship, setEditingScholarship] = useState(null);
+  const [scholarships, setScholarships] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    min_cgpa: "",
+    max_income: "",
+    category: "General",
+    gender: "all",
+    hosteller: null,
+    amount: "",
+    deadline: "",
+    is_active: true,
+  });
+
+  // Fetch scholarships on mount
+  useEffect(() => {
+    fetchScholarships();
+  }, []);
+
+  const fetchScholarships = async () => {
+    try {
+      setLoading(true);
+      const response = await apiService.getScholarships();
+      setScholarships(response.data || []);
+      setError(null);
+    } catch (err) {
+      setError("Failed to load scholarships. Please try again.");
+      console.error("Error fetching scholarships:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Filter scholarships
   const filteredScholarships = scholarships.filter((s) => {
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
-      if (!s.name.toLowerCase().includes(query) && !s.provider.toLowerCase().includes(query)) {
+      if (!s.name?.toLowerCase().includes(query)) {
         return false;
       }
     }
@@ -41,14 +76,70 @@ function AdminScholarships() {
 
   const handleEdit = (scholarship) => {
     setEditingScholarship(scholarship);
+    setFormData({
+      name: scholarship.name || "",
+      description: scholarship.description || "",
+      min_cgpa: scholarship.min_cgpa || "",
+      max_income: scholarship.max_income || "",
+      category: scholarship.category || "General",
+      gender: scholarship.gender || "all",
+      hosteller: scholarship.hosteller,
+      amount: scholarship.amount || "",
+      deadline: scholarship.deadline || "",
+      is_active: scholarship.is_active ?? true,
+    });
     setShowAddModal(true);
   };
 
-  const handleDelete = (id) => {
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      description: "",
+      min_cgpa: "",
+      max_income: "",
+      category: "General",
+      gender: "all",
+      hosteller: null,
+      amount: "",
+      deadline: "",
+      is_active: true,
+    });
+    setEditingScholarship(null);
+  };
+
+  const handleDelete = async (id) => {
     if (confirm("Are you sure you want to delete this scholarship?")) {
-      // In real app, delete from backend
-      console.log("Deleting scholarship:", id);
+      try {
+        await apiService.deleteScholarship(id);
+        await fetchScholarships();
+      } catch (err) {
+        alert("Failed to delete scholarship: " + err.message);
+      }
     }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingScholarship) {
+        await apiService.updateScholarship(editingScholarship.scholarship_id, formData);
+      } else {
+        await apiService.createScholarship(formData);
+      }
+      setShowAddModal(false);
+      resetForm();
+      await fetchScholarships();
+    } catch (err) {
+      alert("Failed to save scholarship: " + err.message);
+    }
+  };
+
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const getStatusBadge = (status) => {
@@ -65,7 +156,7 @@ function AdminScholarships() {
     );
   };
 
-  const categories = ["all", "Merit", "SC/ST", "OBC", "NT/VJNT", "EWS", "Special"];
+  const categories = ["all", "SC", "ST", "OBC", "General", "EWS", "NT", "VJ", "SBC"];
 
   return (
     <div className="admin-scholarships-page">
@@ -106,7 +197,24 @@ function AdminScholarships() {
         </div>
       </div>
 
+      {/* Loading State */}
+      {loading && (
+        <div className="loading-state">
+          <Loader2 className="loading-icon" />
+          <p>Loading scholarships...</p>
+        </div>
+      )}
+
+      {/* Error State */}
+      {error && (
+        <div className="error-state">
+          <p>{error}</p>
+          <button onClick={fetchScholarships}>Retry</button>
+        </div>
+      )}
+
       {/* Scholarships Table */}
+      {!loading && !error && (
       <div className="scholarships-table-container">
         <table className="scholarships-table">
           <thead>
@@ -114,7 +222,6 @@ function AdminScholarships() {
               <th>Scholarship Name</th>
               <th>Category</th>
               <th>Amount</th>
-              <th>Applications</th>
               <th>Deadline</th>
               <th>Status</th>
               <th>Actions</th>
@@ -122,37 +229,30 @@ function AdminScholarships() {
           </thead>
           <tbody>
             {filteredScholarships.map((scholarship) => (
-              <tr key={scholarship.id}>
+              <tr key={scholarship.scholarship_id}>
                 <td>
                   <div className="scholarship-cell">
                     <span className="scholarship-name">{scholarship.name}</span>
-                    <span className="scholarship-provider">{scholarship.provider}</span>
                   </div>
                 </td>
                 <td>
                   <span className="category-tag">{scholarship.category}</span>
                 </td>
                 <td>
-                  <span className="amount">₹{scholarship.amount.toLocaleString()}</span>
-                </td>
-                <td>
-                  <div className="applications-cell">
-                    <Users className="cell-icon" />
-                    <span>{scholarship.applicationsCount}</span>
-                  </div>
+                  <span className="amount">₹{scholarship.amount?.toLocaleString()}</span>
                 </td>
                 <td>
                   <div className="deadline-cell">
                     <Calendar className="cell-icon" />
-                    <span>{new Date(scholarship.deadline).toLocaleDateString()}</span>
+                    <span>{scholarship.deadline ? new Date(scholarship.deadline).toLocaleDateString() : 'N/A'}</span>
                   </div>
                 </td>
-                <td>{getStatusBadge(scholarship.status)}</td>
+                <td>{getStatusBadge(scholarship.is_active ? "Active" : "Inactive")}</td>
                 <td>
                   <div className="actions-cell">
                     <button
                       className="action-btn view"
-                      onClick={() => navigate(`/scholarships/${scholarship.id}`)}
+                      onClick={() => navigate(`/scholarships/${scholarship.scholarship_id}`)}
                       title="View"
                     >
                       <Eye className="action-icon" />
@@ -166,7 +266,7 @@ function AdminScholarships() {
                     </button>
                     <button
                       className="action-btn delete"
-                      onClick={() => handleDelete(scholarship.id)}
+                      onClick={() => handleDelete(scholarship.scholarship_id)}
                       title="Delete"
                     >
                       <Trash2 className="action-icon" />
@@ -187,6 +287,7 @@ function AdminScholarships() {
           </div>
         )}
       </div>
+      )}
 
       {/* Add/Edit Modal */}
       {showAddModal && (
@@ -198,42 +299,44 @@ function AdminScholarships() {
                 className="close-btn"
                 onClick={() => {
                   setShowAddModal(false);
-                  setEditingScholarship(null);
+                  resetForm();
                 }}
               >
                 <X className="close-icon" />
               </button>
             </div>
 
-            <form className="scholarship-form">
+            <form className="scholarship-form" onSubmit={handleSubmit}>
               <div className="form-grid">
                 <div className="form-group">
                   <label>Scholarship Name *</label>
                   <input
                     type="text"
-                    defaultValue={editingScholarship?.name}
+                    name="name"
+                    value={formData.name}
+                    onChange={handleInputChange}
                     placeholder="Enter scholarship name"
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label>Provider *</label>
-                  <input
-                    type="text"
-                    defaultValue={editingScholarship?.provider}
-                    placeholder="e.g., Government of India"
+                    required
                   />
                 </div>
 
                 <div className="form-group">
                   <label>Category *</label>
-                  <select defaultValue={editingScholarship?.category}>
-                    <option value="Merit">Merit Based</option>
-                    <option value="SC/ST">SC/ST</option>
+                  <select
+                    name="category"
+                    value={formData.category}
+                    onChange={handleInputChange}
+                    required
+                  >
+                    <option value="SC">SC</option>
+                    <option value="ST">ST</option>
                     <option value="OBC">OBC</option>
-                    <option value="NT/VJNT">NT/VJNT</option>
+                    <option value="General">General</option>
                     <option value="EWS">EWS</option>
-                    <option value="Special">Special</option>
+                    <option value="NT">NT</option>
+                    <option value="VJ">VJ</option>
+                    <option value="SBC">SBC</option>
+                    <option value="ALL">ALL</option>
                   </select>
                 </div>
 
@@ -241,8 +344,12 @@ function AdminScholarships() {
                   <label>Amount (₹) *</label>
                   <input
                     type="number"
-                    defaultValue={editingScholarship?.amount}
+                    name="amount"
+                    value={formData.amount}
+                    onChange={handleInputChange}
                     placeholder="Enter scholarship amount"
+                    required
+                    min="0"
                   />
                 </div>
 
@@ -250,41 +357,54 @@ function AdminScholarships() {
                   <label>Application Deadline *</label>
                   <input
                     type="date"
-                    defaultValue={editingScholarship?.deadline}
+                    name="deadline"
+                    value={formData.deadline}
+                    onChange={handleInputChange}
+                    required
                   />
                 </div>
 
                 <div className="form-group">
-                  <label>Duration</label>
-                  <select defaultValue={editingScholarship?.duration || "Annual"}>
-                    <option value="One-time">One-time</option>
-                    <option value="Annual">Annual</option>
-                    <option value="Semester">Semester</option>
-                    <option value="Monthly">Monthly</option>
+                  <label>Gender</label>
+                  <select
+                    name="gender"
+                    value={formData.gender}
+                    onChange={handleInputChange}
+                  >
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                    <option value="all">All</option>
                   </select>
                 </div>
 
-                <div className="form-group full-width">
-                  <label>Description</label>
-                  <textarea
-                    rows="3"
-                    defaultValue={editingScholarship?.description}
-                    placeholder="Enter scholarship description"
-                  />
-                </div>
-
-                <div className="form-section full-width">
-                  <h4>Eligibility Criteria</h4>
+                <div className="form-group">
+                  <label>Hosteller Only</label>
+                  <select
+                    name="hosteller"
+                    value={formData.hosteller === null ? "" : formData.hosteller}
+                    onChange={(e) => setFormData(prev => ({
+                      ...prev,
+                      hosteller: e.target.value === "" ? null : e.target.value === "true"
+                    }))}
+                  >
+                    <option value="">Any</option>
+                    <option value="true">Yes</option>
+                    <option value="false">No</option>
+                  </select>
                 </div>
 
                 <div className="form-group">
                   <label>Minimum CGPA</label>
                   <input
                     type="number"
-                    step="0.1"
+                    name="min_cgpa"
+                    step="0.01"
                     min="0"
                     max="10"
-                    defaultValue={editingScholarship?.eligibility?.minCgpa || 6.0}
+                    value={formData.min_cgpa}
+                    onChange={handleInputChange}
+                    placeholder="e.g., 6.50"
                   />
                 </div>
 
@@ -292,27 +412,35 @@ function AdminScholarships() {
                   <label>Maximum Income (₹)</label>
                   <input
                     type="number"
-                    defaultValue={editingScholarship?.eligibility?.maxIncome}
+                    name="max_income"
+                    value={formData.max_income}
+                    onChange={handleInputChange}
                     placeholder="Annual family income limit"
+                    min="0"
                   />
                 </div>
 
                 <div className="form-group full-width">
-                  <label>Eligible Categories (comma-separated)</label>
-                  <input
-                    type="text"
-                    defaultValue={editingScholarship?.eligibility?.caste?.join(", ")}
-                    placeholder="e.g., OPEN, SC, ST, OBC"
+                  <label>Description</label>
+                  <textarea
+                    name="description"
+                    rows="3"
+                    value={formData.description}
+                    onChange={handleInputChange}
+                    placeholder="Enter scholarship description"
                   />
                 </div>
 
-                <div className="form-group full-width">
-                  <label>Required Documents (comma-separated)</label>
-                  <input
-                    type="text"
-                    defaultValue={editingScholarship?.documents?.join(", ")}
-                    placeholder="e.g., Income Certificate, Caste Certificate, Marksheet"
-                  />
+                <div className="form-group">
+                  <label>
+                    <input
+                      type="checkbox"
+                      name="is_active"
+                      checked={formData.is_active}
+                      onChange={handleInputChange}
+                    />
+                    Active
+                  </label>
                 </div>
               </div>
 
@@ -322,7 +450,7 @@ function AdminScholarships() {
                   className="btn-cancel"
                   onClick={() => {
                     setShowAddModal(false);
-                    setEditingScholarship(null);
+                    resetForm();
                   }}
                 >
                   Cancel
